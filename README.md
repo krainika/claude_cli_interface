@@ -27,17 +27,15 @@ pip install -e .
 
 ## Setup
 
-Set your Anthropic API key:
+On first run, the app will prompt you to enter your Anthropic API key. It is saved to `~/.claude_tui/.env` automatically, so you only need to do this once.
+
+You can also set it manually via environment variable or a `.env` file in the project root:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Or create a `.env` file in the project root:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
+To update the key later, use the `/key` command from within the app.
 
 ## Usage
 
@@ -69,6 +67,7 @@ claude-tui
 | `/model <name>` | Switch the Claude model |
 | `/system <text>` | Set a custom system prompt |
 | `/help` | Show help screen |
+| `/key` | Update the Anthropic API key |
 
 ## Attachments & Drag-and-Drop
 
