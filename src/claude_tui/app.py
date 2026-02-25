@@ -12,8 +12,9 @@ from textual.widgets import Button, Footer, Header, Label, Static
 
 from claude_tui.api import stream_response
 from claude_tui.attachments import AttachmentError, load_attachment
-from claude_tui.config import config
+from claude_tui.config import config, save_api_key
 from claude_tui.screens.help_screen import HelpScreen
+from claude_tui.screens.key_prompt import KeyPromptScreen
 from claude_tui.screens.session_picker import SessionPickerScreen
 from claude_tui.session import (
     ChatMessage,
@@ -73,11 +74,21 @@ class ClaudeTUIApp(App):
         self._update_header()
         self._update_status()
         if not config.has_api_key:
-            self.status_bar.set_error("ANTHROPIC_API_KEY not set — set it in .env or environment")
+            self.call_after_refresh(self._prompt_for_api_key)
         else:
             self.status_bar.set_ready()
-        # Focus the input on startup
         self.input_bar.text_area.focus()
+
+    def _prompt_for_api_key(self) -> None:
+        def on_key_entered(key: str | None) -> None:
+            if key:
+                save_api_key(key)
+                config.api_key = key
+                self.status_bar.set_ready()
+            else:
+                self.status_bar.set_error("No API key set — run /key to enter one")
+
+        self.push_screen(KeyPromptScreen(), on_key_entered)
 
     # ------------------------------------------------------------------
     # Widget accessors
@@ -175,6 +186,9 @@ class ClaudeTUIApp(App):
         match cmd:
             case "/help":
                 self.push_screen(HelpScreen())
+                return True
+            case "/key":
+                self._prompt_for_api_key()
                 return True
             case "/clear":
                 self.action_new_session()

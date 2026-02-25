@@ -8,8 +8,18 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env from cwd or parent dirs
-load_dotenv()
+# Load from ~/.claude_tui/.env first, then local .env (local takes precedence)
+_config_dir = Path.home() / ".claude_tui"
+_config_dir.mkdir(parents=True, exist_ok=True)
+load_dotenv(_config_dir / ".env")
+load_dotenv(override=True)  # local .env overrides persisted key
+
+
+def save_api_key(key: str) -> None:
+    """Persist the API key to ~/.claude_tui/.env."""
+    env_path = _config_dir / ".env"
+    env_path.write_text(f"ANTHROPIC_API_KEY={key}\n", encoding="utf-8")
+    env_path.chmod(0o600)  # readable only by the owner
 
 
 @dataclass

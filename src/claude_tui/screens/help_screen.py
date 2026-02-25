@@ -29,6 +29,7 @@ HELP_TEXT = """\
 | `/model <name>` | Switch the Claude model |
 | `/system <text>` | Set a custom system prompt |
 | `/help` | Show this help screen |
+| `/key` | Update the Anthropic API key |
 
 ## Models
 - `claude-opus-4-6` — most capable
