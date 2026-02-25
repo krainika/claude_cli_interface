@@ -287,7 +287,7 @@ class ClaudeTUIApp(App):
                 token_count = len(accumulated.split())  # rough estimate
                 self.call_later(bubble.stream_update, accumulated)
                 self.call_later(self.status_bar.set_streaming, token_count)
-                self.call_later(self.chat_view.scroll_end, False)
+                self.call_later(lambda: self.chat_view.scroll_end(animate=False))
 
             full_text, total_tokens = await stream_response(
                 messages=api_messages,
