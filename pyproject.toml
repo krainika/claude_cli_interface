@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claude-tui"
+version = "0.1.0"
+description = "A terminal UI for Claude — replicate the desktop app experience in your terminal"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=0.80",
+    "anthropic>=0.40",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+claude-tui = "claude_tui.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claude_tui"]
+
+[tool.hatch.metadata]
+allow-direct-references = true

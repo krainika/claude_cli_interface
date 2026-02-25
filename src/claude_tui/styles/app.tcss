@@ -1,0 +1,175 @@
+/* Claude TUI — main stylesheet */
+
+Screen {
+    layout: vertical;
+    background: $background;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+#app-header {
+    dock: top;
+    height: 1;
+    background: $primary;
+    color: $text;
+    padding: 0 2;
+    layout: horizontal;
+}
+#app-header > #header-title {
+    width: 1fr;
+    text-style: bold;
+}
+#app-header > #header-session {
+    color: $text-muted;
+}
+
+/* ── Chat area ───────────────────────────────────────────────────────────── */
+#chat-view {
+    height: 1fr;
+    border: none;
+}
+
+/* ── Message bubbles ─────────────────────────────────────────────────────── */
+MessageBubble {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+MessageBubble.user {
+    background: $primary 10%;
+}
+
+MessageBubble.assistant {
+    background: $surface;
+}
+
+MessageBubble > .bubble-header {
+    padding: 0 1;
+    text-style: bold;
+}
+
+MessageBubble.user > .bubble-header {
+    color: $accent;
+}
+
+MessageBubble.assistant > .bubble-header {
+    color: $success;
+}
+
+MessageBubble > Markdown {
+    background: transparent;
+    padding: 0 1 1 1;
+}
+
+/* ── Input bar ───────────────────────────────────────────────────────────── */
+InputBar {
+    height: auto;
+    min-height: 4;
+    max-height: 12;
+    dock: bottom;
+    border-top: solid $panel;
+    background: $surface;
+    layout: horizontal;
+    padding: 0;
+}
+
+InputBar > TextArea {
+    width: 1fr;
+    min-height: 3;
+    background: $surface;
+    border: none;
+    padding: 1;
+}
+
+InputBar > Button {
+    width: 8;
+    height: 3;
+    margin: 0 1;
+    align-vertical: middle;
+}
+
+/* ── Status bar ──────────────────────────────────────────────────────────── */
+StatusBar {
+    height: 1;
+    dock: bottom;
+    background: $panel;
+    layout: horizontal;
+    padding: 0 2;
+}
+
+StatusBar > #status-left {
+    width: 1fr;
+    color: $text-muted;
+}
+
+StatusBar > #status-right {
+    color: $text-muted;
+    text-align: right;
+}
+
+/* ── Attachment bar ──────────────────────────────────────────────────────── */
+AttachmentBar {
+    height: auto;
+    min-height: 3;
+    background: $surface;
+    border-top: solid $panel;
+    padding: 0 2;
+    layout: horizontal;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+Footer {
+    background: $panel;
+    color: $text-muted;
+}
+
+/* ── Session picker modal ────────────────────────────────────────────────── */
+SessionPickerScreen {
+    align: center middle;
+}
+
+#session-dialog {
+    width: 70%;
+    max-width: 90;
+    height: 70%;
+    max-height: 40;
+    background: $surface;
+    border: solid $primary;
+    padding: 1 2;
+}
+
+#session-dialog > #session-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+#session-list {
+    height: 1fr;
+    border: solid $panel;
+}
+
+#session-dialog > .dialog-footer {
+    height: 3;
+    layout: horizontal;
+    margin-top: 1;
+}
+
+/* ── Help screen modal ───────────────────────────────────────────────────── */
+HelpScreen {
+    align: center middle;
+}
+
+#help-dialog {
+    width: 70%;
+    max-width: 90;
+    height: auto;
+    max-height: 40;
+    background: $surface;
+    border: solid $primary;
+    padding: 1 2;
+}
+
+#help-dialog > Markdown {
+    background: transparent;
+    height: auto;
+}
