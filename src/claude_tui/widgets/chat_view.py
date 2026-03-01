@@ -65,5 +65,6 @@ class ChatView(VerticalScroll):
         """Remove all bubbles and restore the empty hint."""
         for bubble in self.query(MessageBubble):
             bubble.remove()
-        self._bubble_count = 0
+        # Do NOT reset _bubble_count — remove() is async so old widgets linger
+        # briefly in the DOM; keeping the counter monotonic avoids duplicate IDs.
         self._show_hint()
