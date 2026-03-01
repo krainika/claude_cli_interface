@@ -260,7 +260,7 @@ class ClaudeTUIApp(App):
         self._pending_attachments.clear()
         self._update_header()
 
-        assistant_bubble = self.chat_view.add_message("assistant", "")
+        assistant_bubble = self.chat_view.add_message("assistant", "", model=self._model)
 
         self._streaming = True
         self.input_bar.set_enabled(False)
@@ -284,10 +284,17 @@ class ClaudeTUIApp(App):
             parts.append(text)
         return "\n\n".join(parts)
 
+    def _scroll_to_end(self) -> None:
+        """Schedule a scroll-to-end after the next layout refresh."""
+        self.call_after_refresh(
+            lambda: self.chat_view.scroll_end(animate=False, immediate=True)
+        )
+
     async def _stream_worker(self, bubble: MessageBubble) -> None:
         """
         Async worker that streams the API response directly, awaiting each
-        Markdown.update() call so scroll_end fires after layout is settled.
+        Markdown.update() (which returns AwaitComplete) so children are fully
+        mounted, then scheduling scroll after the next layout refresh.
         """
         try:
             client = get_client()
@@ -315,25 +322,23 @@ class ClaudeTUIApp(App):
                             ):
                                 accumulated += event.delta.text
                                 bubble._text = accumulated
-                                # Await update so children are mounted before scroll
                                 await bubble._markdown.update(
                                     bubble._build(accumulated, cursor=True)
                                 )
                                 self.status_bar.set_streaming(
                                     len(accumulated.split())
                                 )
-                                self.chat_view.scroll_end(animate=False)
+                                self._scroll_to_end()
                         case "message_delta":
                             if hasattr(event, "usage"):
                                 output_tokens = event.usage.output_tokens
 
             self._total_tokens += input_tokens + output_tokens
 
-            # Finalize: remove cursor, scroll to show complete response
             await bubble._markdown.update(
                 bubble._build(accumulated or "*[empty response]*")
             )
-            self.chat_view.scroll_end(animate=False)
+            self._scroll_to_end()
 
             assistant_msg = ChatMessage(
                 role="assistant",

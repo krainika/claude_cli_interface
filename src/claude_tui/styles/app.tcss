@@ -29,26 +29,7 @@ Screen {
     padding: 0 1;
 }
 
-/* ── Message bubbles ─────────────────────────────────────────────────────── */
-MessageBubble {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
-
-MessageBubble.user {
-    background: $primary 10%;
-}
-
-MessageBubble.assistant {
-    background: $surface;
-}
-
-MessageBubble > Markdown {
-    background: transparent;
-    padding: 0 1;
-    margin: 0;
-}
+/* ── Message bubbles — see DEFAULT_CSS in message_bubble.py ─────────────── */
 
 /* ── Input bar ───────────────────────────────────────────────────────────── */
 InputBar {

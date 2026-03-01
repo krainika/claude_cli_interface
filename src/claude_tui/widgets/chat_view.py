@@ -14,7 +14,7 @@ class ChatView(VerticalScroll):
 
     DEFAULT_CSS = """
     ChatView {
-        padding: 1 2;
+        padding: 0 1;
     }
     ChatView > .empty-hint {
         color: $text-muted;
@@ -47,13 +47,14 @@ class ChatView(VerticalScroll):
     def _hide_hint(self) -> None:
         self._hint.add_class("hidden")
 
-    def add_message(self, role: str, text: str = "") -> MessageBubble:
+    def add_message(self, role: str, text: str = "", model: str = "Claude") -> MessageBubble:
         """Mount a new MessageBubble and return it."""
         self._hide_hint()
         self._bubble_count += 1
         bubble = MessageBubble(
             role=role,
             initial_text=text,
+            model=model,
             id=f"bubble-{self._bubble_count}",
         )
         self.mount(bubble)
