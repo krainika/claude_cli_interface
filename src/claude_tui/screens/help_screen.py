@@ -18,7 +18,8 @@ HELP_TEXT = """\
 | `Ctrl+N` | New session |
 | `Ctrl+O` | Open session picker |
 | `Ctrl+Q` | Quit |
-| `Tab` | Focus next widget |
+| `Ctrl+↑` | Scroll conversation up |
+| `Ctrl+↓` | Scroll conversation down |
 | `Escape` | Close modal / cancel |
 
 ## Slash Commands

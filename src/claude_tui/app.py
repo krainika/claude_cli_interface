@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Footer, Header, Label, Static
+from textual.containers import Horizontal
+from textual.widgets import Button, Footer, Header, Label
 
-from claude_tui.api import stream_response
+from claude_tui.api import get_client
 from claude_tui.attachments import AttachmentError, load_attachment
 from claude_tui.config import config, save_api_key
 from claude_tui.screens.help_screen import HelpScreen
@@ -40,6 +39,9 @@ class ClaudeTUIApp(App):
         Binding("ctrl+n", "new_session", "New", show=True),
         Binding("ctrl+o", "open_session", "Open", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
+        # Scroll chat while keeping focus in input (priority overrides TextArea)
+        Binding("ctrl+up", "scroll_chat_up", "Scroll ↑", show=False, priority=True),
+        Binding("ctrl+down", "scroll_chat_down", "Scroll ↓", show=False, priority=True),
     ]
 
     TITLE = "Claude TUI"
@@ -135,7 +137,6 @@ class ClaudeTUIApp(App):
         raw = self.input_bar.get_text().strip()
         if not raw and not self._pending_attachments:
             return
-        # Handle slash commands
         if raw.startswith("/"):
             handled = self._handle_slash_command(raw)
             if handled:
@@ -170,15 +171,17 @@ class ClaudeTUIApp(App):
 
         self.push_screen(SessionPickerScreen(), on_session_selected)
 
+    def action_scroll_chat_up(self) -> None:
+        self.chat_view.scroll_page_up(animate=False)
+
+    def action_scroll_chat_down(self) -> None:
+        self.chat_view.scroll_page_down(animate=False)
+
     # ------------------------------------------------------------------
     # Slash command handling
     # ------------------------------------------------------------------
 
     def _handle_slash_command(self, raw: str) -> bool:
-        """
-        Parse and execute a slash command.
-        Returns True if the command was handled (so the caller clears input).
-        """
         parts = raw.split(maxsplit=1)
         cmd = parts[0].lower()
         arg = parts[1] if len(parts) > 1 else ""
@@ -220,7 +223,6 @@ class ClaudeTUIApp(App):
     def _attach_file(self, path_str: str) -> None:
         p = Path(path_str).expanduser()
         try:
-            # Validate by loading (will raise on error)
             load_attachment(p)
             self._pending_attachments.append(p)
             self.attachment_bar.add_attachment(p.name)
@@ -234,7 +236,6 @@ class ClaudeTUIApp(App):
 
     def _do_send(self, text: str) -> None:
         """Build the user message, add to chat, start streaming worker."""
-        # Build content blocks
         content_blocks = []
         for path in self._pending_attachments:
             try:
@@ -250,32 +251,26 @@ class ClaudeTUIApp(App):
         if not content_blocks:
             return
 
-        # Add user message to session & chat
         user_msg = ChatMessage(role="user", content=content_blocks)
         self._session.add_message(user_msg)
         self.chat_view.add_message("user", self._render_user_text(content_blocks, text))
 
-        # Clear input and attachments
         self.input_bar.clear()
         self.attachment_bar.clear()
         self._pending_attachments.clear()
-
-        # Update header with new title (set after first message)
         self._update_header()
 
-        # Add assistant bubble (streaming target)
         assistant_bubble = self.chat_view.add_message("assistant", "")
 
-        # Disable input while streaming
         self._streaming = True
         self.input_bar.set_enabled(False)
         self.status_bar.set_streaming()
 
-        # Launch async worker
-        self.run_worker(self._stream_worker(assistant_bubble), exclusive=False, exit_on_error=False)
+        self.run_worker(
+            self._stream_worker(assistant_bubble), exclusive=False, exit_on_error=False
+        )
 
     def _render_user_text(self, blocks: list, text: str) -> str:
-        """Build Markdown text to display in the user bubble."""
         parts = []
         for block in blocks:
             if isinstance(block, ImageContent):
@@ -290,66 +285,73 @@ class ClaudeTUIApp(App):
         return "\n\n".join(parts)
 
     async def _stream_worker(self, bubble: MessageBubble) -> None:
-        """Async Textual worker that calls the API and streams tokens."""
+        """
+        Async worker that streams the API response directly, awaiting each
+        Markdown.update() call so scroll_end fires after layout is settled.
+        """
         try:
+            client = get_client()
             api_messages = self._session.to_api_messages()
+            accumulated = ""
+            input_tokens = 0
+            output_tokens = 0
 
-            token_count = 0
-
-            def on_chunk(accumulated: str) -> None:
-                nonlocal token_count
-                token_count = len(accumulated.split())  # rough estimate
-
-                def update_and_scroll() -> None:
-                    bubble.stream_update(accumulated)
-                    self.status_bar.set_streaming(token_count)
-                    # Scroll after Markdown reflows so we reach the real bottom
-                    self.call_after_refresh(
-                        lambda: self.chat_view.scroll_end(animate=False)
-                    )
-
-                self.call_later(update_and_scroll)
-
-            full_text, total_tokens = await stream_response(
-                messages=api_messages,
+            async with client.messages.stream(
                 model=self._model,
-                system=self._system,
                 max_tokens=config.max_tokens,
-                on_chunk=on_chunk,
+                system=self._system,
+                messages=api_messages,
+            ) as stream:
+                async for event in stream:
+                    match event.type:
+                        case "message_start":
+                            if hasattr(event, "message") and hasattr(
+                                event.message, "usage"
+                            ):
+                                input_tokens = event.message.usage.input_tokens
+                        case "content_block_delta":
+                            if hasattr(event, "delta") and hasattr(
+                                event.delta, "text"
+                            ):
+                                accumulated += event.delta.text
+                                bubble._text = accumulated
+                                # Await update so children are mounted before scroll
+                                await bubble._markdown.update(
+                                    bubble._build(accumulated, cursor=True)
+                                )
+                                self.status_bar.set_streaming(
+                                    len(accumulated.split())
+                                )
+                                self.chat_view.scroll_end(animate=False)
+                        case "message_delta":
+                            if hasattr(event, "usage"):
+                                output_tokens = event.usage.output_tokens
+
+            self._total_tokens += input_tokens + output_tokens
+
+            # Finalize: remove cursor, scroll to show complete response
+            await bubble._markdown.update(
+                bubble._build(accumulated or "*[empty response]*")
             )
+            self.chat_view.scroll_end(animate=False)
 
-            self._total_tokens += total_tokens
-
-            # Finalize the bubble (remove streaming cursor) then scroll to end
-            def finalize_and_scroll() -> None:
-                bubble.finalize(full_text)
-                self.call_after_refresh(
-                    lambda: self.chat_view.scroll_end(animate=False)
-                )
-
-            self.call_later(finalize_and_scroll)
-
-            # Save assistant message to session
             assistant_msg = ChatMessage(
                 role="assistant",
-                content=[TextContent(text=full_text)],
+                content=[TextContent(text=accumulated)],
             )
             self._session.add_message(assistant_msg)
-
-            # Persist session to disk
             self._session.save(config.sessions_dir)
-
-            self.call_later(self.status_bar.set_ready, self._total_tokens)
+            self.status_bar.set_ready(self._total_tokens)
 
         except Exception as e:
             error_msg = str(e)
-            self.call_later(bubble.finalize, f"*Error: {error_msg}*")
-            self.call_later(self.status_bar.set_error, error_msg)
+            await bubble._markdown.update(bubble._build(f"*Error: {error_msg}*"))
+            self.status_bar.set_error(error_msg)
 
         finally:
             self._streaming = False
-            self.call_later(self.input_bar.set_enabled, True)
-            self.call_later(self.input_bar.text_area.focus)
+            self.input_bar.set_enabled(True)
+            self.input_bar.text_area.focus()
 
     # ------------------------------------------------------------------
     # Session loading
