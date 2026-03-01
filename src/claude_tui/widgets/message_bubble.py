@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.widgets import Markdown, Static
+from textual.widgets import Markdown
 from textual.widget import Widget
 
 
@@ -12,31 +12,23 @@ class MessageBubble(Widget):
 
     DEFAULT_CSS = """
     MessageBubble {
-        margin: 0 0 1 0;
+        margin: 0;
         padding: 0;
     }
     MessageBubble.user {
-        align: right middle;
+        background: $primary 10%;
     }
     MessageBubble.assistant {
-        align: left middle;
-    }
-    MessageBubble > .bubble-header {
-        text-style: bold;
-        margin: 0 1;
-    }
-    MessageBubble.user > .bubble-header {
-        color: $accent;
-    }
-    MessageBubble.assistant > .bubble-header {
-        color: $success;
+        background: $surface;
     }
     MessageBubble > Markdown {
-        margin: 0 1;
-        padding: 0 1;
         background: transparent;
+        padding: 0 1;
+        margin: 0;
     }
     """
+
+    _PREFIXES = {"user": "**You:** ", "assistant": "**Claude:** "}
 
     def __init__(self, role: str, initial_text: str = "", **kwargs: object) -> None:
         super().__init__(**kwargs)
@@ -45,22 +37,23 @@ class MessageBubble(Widget):
         self.add_class(role)
 
     def compose(self) -> ComposeResult:
-        label = "You" if self.role == "user" else "Claude"
-        yield Static(label, classes="bubble-header")
-        yield Markdown(self._text or "▋", id=f"md-{self.id}")
+        yield Markdown(self._build(self._text), id=f"md-{self.id}")
+
+    def _build(self, text: str, cursor: bool = False) -> str:
+        prefix = self._PREFIXES.get(self.role, "")
+        body = (text + " ▋") if cursor else (text or "")
+        return prefix + body
 
     @property
     def _markdown(self) -> Markdown:
-        return self.query_one(Markdown)
+        return self.query_one(f"#md-{self.id}", Markdown)
 
     def stream_update(self, full_text: str) -> None:
-        """Called from call_later to update the Markdown widget with accumulated text."""
+        """Called from call_later; updates Markdown with the full accumulated text."""
         self._text = full_text
-        # Show streaming cursor when text is non-empty
-        display = full_text + " ▋" if full_text else "▋"
-        self._markdown.update(display)
+        self._markdown.update(self._build(full_text, cursor=True))
 
     def finalize(self, full_text: str) -> None:
-        """Called when streaming is complete — removes cursor."""
+        """Called when streaming is complete — removes the cursor."""
         self._text = full_text
-        self._markdown.update(full_text or "*[empty response]*")
+        self._markdown.update(self._build(full_text or "*[empty response]*"))

@@ -26,12 +26,14 @@ Screen {
 #chat-view {
     height: 1fr;
     border: none;
+    padding: 0 1;
 }
 
 /* ── Message bubbles ─────────────────────────────────────────────────────── */
 MessageBubble {
     width: 100%;
-    margin-bottom: 1;
+    margin: 0;
+    padding: 0;
 }
 
 MessageBubble.user {
@@ -42,22 +44,10 @@ MessageBubble.assistant {
     background: $surface;
 }
 
-MessageBubble > .bubble-header {
-    padding: 0 1;
-    text-style: bold;
-}
-
-MessageBubble.user > .bubble-header {
-    color: $accent;
-}
-
-MessageBubble.assistant > .bubble-header {
-    color: $success;
-}
-
 MessageBubble > Markdown {
     background: transparent;
-    padding: 0 1 1 1;
+    padding: 0 1;
+    margin: 0;
 }
 
 /* ── Input bar ───────────────────────────────────────────────────────────── */

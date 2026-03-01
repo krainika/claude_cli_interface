@@ -299,9 +299,16 @@ class ClaudeTUIApp(App):
             def on_chunk(accumulated: str) -> None:
                 nonlocal token_count
                 token_count = len(accumulated.split())  # rough estimate
-                self.call_later(bubble.stream_update, accumulated)
-                self.call_later(self.status_bar.set_streaming, token_count)
-                self.call_later(lambda: self.chat_view.scroll_end(animate=False))
+
+                def update_and_scroll() -> None:
+                    bubble.stream_update(accumulated)
+                    self.status_bar.set_streaming(token_count)
+                    # Scroll after Markdown reflows so we reach the real bottom
+                    self.call_after_refresh(
+                        lambda: self.chat_view.scroll_end(animate=False)
+                    )
+
+                self.call_later(update_and_scroll)
 
             full_text, total_tokens = await stream_response(
                 messages=api_messages,
@@ -313,8 +320,14 @@ class ClaudeTUIApp(App):
 
             self._total_tokens += total_tokens
 
-            # Finalize the bubble (remove streaming cursor)
-            self.call_later(bubble.finalize, full_text)
+            # Finalize the bubble (remove streaming cursor) then scroll to end
+            def finalize_and_scroll() -> None:
+                bubble.finalize(full_text)
+                self.call_after_refresh(
+                    lambda: self.chat_view.scroll_end(animate=False)
+                )
+
+            self.call_later(finalize_and_scroll)
 
             # Save assistant message to session
             assistant_msg = ChatMessage(
